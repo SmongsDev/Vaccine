@@ -1,3 +1,8 @@
+# DB 작성 
+
+# 특정 문자열 위치
+# 악성코드 진단 함수(ScanMD5):악성코드 파일 크기:MD5 해시:악성코드 이름
+
 import sys, os, zlib, hashlib
 
 def main():
@@ -28,7 +33,6 @@ def main():
         f = md5.hexdigest().encode('utf-8')
     
     buf4 += f
-    print(buf4)
 
     kmd_name = fname.split('.')[0] + '.kmd'
     fp = open(kmd_name, 'wb')
