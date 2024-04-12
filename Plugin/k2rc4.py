@@ -22,14 +22,17 @@ class RC4:
         t_str = []
 
         for i in range(len(data)):
-            t_str.append(data[i])
+            if isinstance(data[i], int):
+                t_str.append(data[i])
+            else:
+                t_str.append(ord(data[i]))
 
         for i in range(len(t_str)):
-            t_str[i] ^= self.__gen_k()
+            t_str[i] = chr(t_str[i] ^ self.__gen_k())
 
         ret_s = ''
         for val in t_str:
-            ret_s += chr(val)
+            ret_s += val
 
         return ret_s
     

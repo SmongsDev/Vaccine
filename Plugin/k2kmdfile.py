@@ -35,57 +35,56 @@ def make(src_fname, debug=False):
 
     random.seed()
 
-    while 1:
-        tmp_kmd_data = ''
+    # while 1:
+    tmp_kmd_data = ''
 
-        # RC4 알고리즘에 사용할 128bit 랜덤키 생성
-        key = ''
-        for _ in range(16):
-            key += chr(random.randint(0, 0xff)) 
+    # RC4 알고리즘에 사용할 128bit 랜덤키 생성
+    key = ''
+    for _ in range(16):
+        key += chr(random.randint(0, 0xff)) 
 
-        e_key = k2rsa.crypt(key, rsa_pr)
-        if len(e_key) != 32:
-            continue
+    e_key = k2rsa.crypt(key, rsa_pr)
+    # if len(e_key) != 32:
+    #     continue
 
-        d_key = k2rsa.crypt(e_key, rsa_pu)
+    d_key = k2rsa.crypt(e_key, rsa_pu)
 
-        if key == d_key and len(key) == len(d_key):
-            tmp_kmd_data += e_key
+    if key == d_key and len(key) == len(d_key):
+        tmp_kmd_data += e_key
 
-            buf1 = open(pyc_name, 'rb').read()
-            buf2 = zlib.compress(buf1)
+        buf1 = open(pyc_name, 'rb').read()
+        buf2 = zlib.compress(buf1)
 
-            e_rc4 = k2rc4.RC4()
-            e_rc4.set_key(key)
+        e_rc4 = k2rc4.RC4()
+        e_rc4.set_key(key)
 
-            buf3 = e_rc4.crypt(buf2)
+        buf3 = e_rc4.crypt(buf2)
 
-            e_rc4 = k2rc4.RC4()
-            e_rc4.set_key(key)
+        e_rc4 = k2rc4.RC4()
+        e_rc4.set_key(key)
 
-            if e_rc4.crypt(buf3) != buf2:
-                continue
+        # if e_rc4.crypt(buf3) != buf2:
+        #     continue
 
-        tmp_kmd_data += buf3
+    tmp_kmd_data += buf3
 
-        md5 = hashlib.md5()
-        md5hashlib = kmd_data + tmp_kmd_data
+    md5 = hashlib.md5()
+    md5hashlib = kmd_data + tmp_kmd_data.encode()
 
-        for _ in range(3):
-            md5.update(md5hashlib)
-            mdhash = md5.hexdigest()
+    for _ in range(3):
+        md5.update(md5hashlib)
 
-        m = md5hashlib.decode('hex')
+    m = md5.digest()
 
-        e_md5 = k2rsa.crypt(m, rsa_pr)
-        if len(e_md5) != 32:
-            continue
+    e_md5 = k2rsa.crypt(m, rsa_pr)
+    # if len(e_md5) != 32:
+    #     continue
 
-        d_md5 = k2rsa.crypt(e_md5, rsa_pu)
+    d_md5 = k2rsa.crypt(e_md5, rsa_pu)
 
-        if m == d_md5:
-            kmd_data += tmp_kmd_data + e_md5
-            break
+    # if m == d_md5:
+    #     kmd_data += tmp_kmd_data + e_md5
+    #     break
 
     # KMD 파일 생성
     ext = fname.find('.')
@@ -165,32 +164,44 @@ class KMD(KMDConstants):
 
     # KMD 파일 복호화
     def __decrypt(self, fname, debug=False):
-        with open(fname, 'rb') as fp:
-            if fp.read(4) == self.KMD_SIGNATURE:
-                self.__kmd_data = self.KMD_SIGNATURE + fp.read()
-            else:
-                raise KMDFormatError('KMD Header magic not found.')
+        print(fname)
+        try:
+            with open(fname, 'rb') as fp:
+                if fp.read(4) == self.KMD_SIGNATURE:
+                    self.__kmd_data = self.KMD_SIGNATURE + fp.read()
+                else:
+                    raise KMDFormatError('KMD Header magic not found.')
+                
+            tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
+
+            self.date = k2timelib.covert_date(struct.unpack('<H', tmp)[0])
+            print(self.time)
+
+            e_md5hash = self.__get_md5()
+
+            # 무결성 체크
+            md5hash = ntimes_md5(self.__kmd_data[:self.KMD_MD5_OFFSET], 3)
+            if e_md5hash != md5hash.decode('hex'):
+                raise KMDFormatError('Invalid KMD MD5 hash.')
             
-        tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
-        self.date = k2timelib.covert_date(struct.unpack('<H', tmp)[0])
-        print(self.time)
+            self.__rc4_key = self.__get_rc4_key()
 
-        e_md5hash = self.__get_md5()
+            e_kmd_data = self.__get_body()
+            if debug:
+                print(len(e_kmd_data))
 
-        # 무결성 체크
-        md5hash = ntimes_md5(self.__kmd_data[:self.KMD_MD5_OFFSET], 3)
-        if e_md5hash != md5hash.decode('hex'):
-            raise KMDFormatError('Invalid KMD MD5 hash.')
+            self.body = zlib.decompress(e_kmd_data)
+            if debug:
+                print(len(self.body))
+
+        except FileNotFoundError:
+            print('파일이 존재하지 않습니다.')
+        except PermissionError:
+            print("파일을 열 권한이 없습니다.")
+        except Exception:
+            print('파일을 열 수 없습니다.')
+            
         
-        self.__rc4_key = self.__get_rc4_key()
-
-        e_kmd_data = self.__get_body()
-        if debug:
-            print(len(e_kmd_data))
-
-        self.body = zlib.decompress(e_kmd_data)
-        if debug:
-            print(len(self.body))
 
     # KMD 파일의 RC4 키 얻기
     def __get_rc4_key(self):

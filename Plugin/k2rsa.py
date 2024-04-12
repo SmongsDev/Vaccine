@@ -101,7 +101,10 @@ def __value_to_string(val):
 def __string_to_value(buf):
     plantext_ord = 0
     for i in range(len(buf)):
-        plantext_ord |= ord(buf[i]) << (i * 8)
+        if isinstance(buf[i], int):
+            plantext_ord |= buf[i] << (i * 8)
+        else:
+            plantext_ord |= ord(buf[i]) << (i * 8)
 
     return plantext_ord
 
