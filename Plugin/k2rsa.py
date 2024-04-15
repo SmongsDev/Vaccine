@@ -2,7 +2,7 @@ import base64
 import marshal
 import random
 
-def __ext_euclid(a,b):
+def __ext_euclid(a, b):
     x, y, u, v = 0, 1, 1, 0
     while a != 0:
         q, r = b // a, b % a
@@ -11,8 +11,6 @@ def __ext_euclid(a,b):
     gcd = b
     return gcd, x, y
 
-
-# rsa 알고리즘
 def __mr(n):
     composite = 0
     inconclusive = 0
@@ -53,9 +51,7 @@ def __mr(n):
 
     if inconclusive >= 6:
         return 1
-    
 
-# bit 수에 해당하는 홀수 생성
 def __gen_number(gen_bit):
     random.seed()
 
@@ -66,24 +62,19 @@ def __gen_number(gen_bit):
     
     return int(b, 2)
 
-
-# bit 수에 해당하는 소수 생성
 def __gen_prime(gen_bit):
     while 1:
         p = __gen_number(gen_bit)
         if __mr(p) == 1:
             return p
-        
 
-# 확장 유클리드 호제법 이용 ( d * e / n 으로 나눴을때 나머지가 1인 정수 d 찾기)
 def __get_ed(n):
     while 1:
         t = int(random.uniform(2, 1000))
         d, x, y = __ext_euclid(t, n)
         if d == 1:
             return t, x
-        
-# 숫자 -> 문자열 (암호화를 쉽게 하기 위함)
+
 def __value_to_string(val):
     ret = ''
     for _ in range(32):
@@ -97,7 +88,6 @@ def __value_to_string(val):
 
     return ret
 
-# 문자열 -> 숫자 ( 암호화를 쉽게 하기 위함 )
 def __string_to_value(buf):
     plantext_ord = 0
     for i in range(len(buf)):
@@ -108,8 +98,6 @@ def __string_to_value(buf):
 
     return plantext_ord
 
-
-# rsa 키 생성
 def create_key(pu_fname='key.prk', pr_fname='key.str', debug=False):
     p = __gen_prime(128)
     q = __gen_prime(128)
@@ -119,8 +107,8 @@ def create_key(pu_fname='key.prk', pr_fname='key.str', debug=False):
     qn = (p - 1) * (q - 1)
     e, d = __get_ed(qn)
 
-    pu = [e,n]
-    pr = [d,n]
+    pu = [e, n]
+    pr = [d, n]
 
     pu_data = base64.b64encode(marshal.dumps(pu))
     pr_data = base64.b64encode(marshal.dumps(pr))
@@ -138,8 +126,6 @@ def create_key(pu_fname='key.prk', pr_fname='key.str', debug=False):
     print('create!!')
     return True
 
-
-# key 파일 읽어 rsa 키로 변환
 def read_key(key_filename):
     try:
         with open(key_filename, 'rt') as fp:
@@ -150,8 +136,7 @@ def read_key(key_filename):
         return key
     except IOError:
         return None
-    
-# 주어진 버퍼와 rsa 키를 이용해 암/복호화
+
 def crypt(buf, key):
     plantext_ord = __string_to_value(buf)
 

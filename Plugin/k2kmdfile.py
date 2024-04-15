@@ -35,56 +35,58 @@ def make(src_fname, debug=False):
 
     random.seed()
 
-    # while 1:
-    tmp_kmd_data = ''
+    while True:
+        tmp_kmd_data = b''
 
-    # RC4 알고리즘에 사용할 128bit 랜덤키 생성
-    key = ''
-    for _ in range(16):
-        key += chr(random.randint(0, 0xff)) 
+        # RC4 알고리즘에 사용할 128bit 랜덤키 생성
+        key = bytes([random.randint(0, 0xff) for _ in range(16)])
 
-    e_key = k2rsa.crypt(key, rsa_pr)
-    # if len(e_key) != 32:
-    #     continue
+        e_key = k2rsa.crypt(key, rsa_pr)
+        if len(e_key) != 32:
+            continue
 
-    d_key = k2rsa.crypt(e_key, rsa_pu)
+        d_key = k2rsa.crypt(e_key, rsa_pu)
+        print(key, ":", d_key.encode())
+        
+        buf3 = b''
+        if key == d_key and len(key) == len(d_key):
+            tmp_kmd_data += e_key
 
-    if key == d_key and len(key) == len(d_key):
-        tmp_kmd_data += e_key
+            buf1 = open(pyc_name, 'rb').read()
+            buf2 = zlib.compress(buf1)
 
-        buf1 = open(pyc_name, 'rb').read()
-        buf2 = zlib.compress(buf1)
+            e_rc4 = k2rc4.RC4()
+            e_rc4.set_key(key)
 
-        e_rc4 = k2rc4.RC4()
-        e_rc4.set_key(key)
+            buf3 = e_rc4.crypt(buf2)
 
-        buf3 = e_rc4.crypt(buf2)
+            e_rc4 = k2rc4.RC4()
+            e_rc4.set_key(key)
 
-        e_rc4 = k2rc4.RC4()
-        e_rc4.set_key(key)
+            if e_rc4.crypt(buf3) != buf2:
+                continue
 
-        # if e_rc4.crypt(buf3) != buf2:
-        #     continue
+        tmp_kmd_data += buf3
 
-    tmp_kmd_data += buf3
+        md5 = hashlib.md5()
+        md5hashlib = kmd_data + tmp_kmd_data
 
-    md5 = hashlib.md5()
-    md5hashlib = kmd_data + tmp_kmd_data.encode()
+        for _ in range(3):
+            md5.update(md5hashlib)
 
-    for _ in range(3):
-        md5.update(md5hashlib)
+        m = md5.digest()
 
-    m = md5.digest()
+        e_md5 = k2rsa.crypt(m, rsa_pr)
+        if len(e_md5) != 32:
+            continue
 
-    e_md5 = k2rsa.crypt(m, rsa_pr)
-    # if len(e_md5) != 32:
-    #     continue
+        d_md5 = k2rsa.crypt(e_md5, rsa_pu)
 
-    d_md5 = k2rsa.crypt(e_md5, rsa_pu)
 
-    # if m == d_md5:
-    #     kmd_data += tmp_kmd_data + e_md5
-    #     break
+        # print(m, ";", d_md5.encode())
+        if m == d_md5:
+            kmd_data += tmp_kmd_data + e_md5
+            break
 
     # KMD 파일 생성
     ext = fname.find('.')
@@ -97,7 +99,7 @@ def make(src_fname, debug=False):
             os.remove(pyc_name)
 
             if debug:
-                print('Success : {} -> {}'.format(fname,kmd_name))
+                print('Success : {} -> {}'.format(fname, kmd_name))
             return True
         else:
             raise IOError
@@ -105,8 +107,6 @@ def make(src_fname, debug=False):
         if debug:
             print('Fail : {}'.format(fname))
         return False
-    
-
 # 복호화 
 
 # MD5 해시 결과 리턴
@@ -131,7 +131,7 @@ class KMDFormatError(Exception):
     
 # KMD 관련 상수
 class KMDConstants:
-    KMD_SIGNATURE = 'KAVM'
+    KMD_SIGNATURE = b'KAVM'
 
     KMD_DATE_OFFSET = 4 # 날짜 위치
     KMD_DATE_LENGTH = 2 # 날짜 크기
@@ -150,49 +150,39 @@ class KMDConstants:
 class KMD(KMDConstants):
     # 클래스 초기화
     def __init__(self, fname, pu):
-        self.filename = fname # KMD 파일 이름
-        self.date = None # 파일 날짜
-        self.time = None # 파일의 시간
-        self.body = None # 복호화된 파일 내용
-
-        self.__kmd_data = None # 암호화된 파일 내용
-        self.__rsa_pu = pu # RSA 공개키
-        self.__rc4_key = None # RC4 키
-
+        self.__rsa_pu = pu
+        self.filename = fname
+        self.date = None
+        self.time = None
+        self.body = None
+        self.__kmd_data = None
         if self.filename:
             self.__decrypt(self.filename)
 
     # KMD 파일 복호화
     def __decrypt(self, fname, debug=False):
         print(fname)
+        current_directory = os.getcwd()
+        print("Current working directory:", current_directory)
+
         try:
             with open(fname, 'rb') as fp:
                 if fp.read(4) == self.KMD_SIGNATURE:
                     self.__kmd_data = self.KMD_SIGNATURE + fp.read()
                 else:
                     raise KMDFormatError('KMD Header magic not found.')
-                
+            
             tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
-
             self.date = k2timelib.covert_date(struct.unpack('<H', tmp)[0])
-            print(self.time)
 
             e_md5hash = self.__get_md5()
-
-            # 무결성 체크
-            md5hash = ntimes_md5(self.__kmd_data[:self.KMD_MD5_OFFSET], 3)
-            if e_md5hash != md5hash.decode('hex'):
+            md5hash = self.__kmd_data[self.KMD_MD5_OFFSET:]
+            if e_md5hash != md5hash:
                 raise KMDFormatError('Invalid KMD MD5 hash.')
-            
+
             self.__rc4_key = self.__get_rc4_key()
-
             e_kmd_data = self.__get_body()
-            if debug:
-                print(len(e_kmd_data))
-
             self.body = zlib.decompress(e_kmd_data)
-            if debug:
-                print(len(self.body))
 
         except FileNotFoundError:
             print('파일이 존재하지 않습니다.')

@@ -1,8 +1,8 @@
 import k2rsa
 import k2kmdfile
 
-# with open('readme.txt', 'w') as f:
-#     f.write('This is a sample text for readme.txt file.')
+with open('readme.txt', 'w') as f:
+    f.write('This is a sample text for readme.txt file.')
 
 k2rsa.create_key('key.pkr','key.skr')
 
