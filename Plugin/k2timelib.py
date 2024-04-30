@@ -6,7 +6,8 @@ def convert_date(t):
     m = (t & 0x01E0) >> 5
     d = (t & 0x001F)
 
-    print('{}-{}-{}'.format(y,m,d))
+    # print('{}-{}-{}'.format(y,m,d))
+    print(f'{y}-{m}-{d}')
     return y, m, d
 
 # 시간 리턴

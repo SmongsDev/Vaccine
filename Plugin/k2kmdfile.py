@@ -46,7 +46,7 @@ def make(src_fname, debug=False):
             continue
 
         d_key = k2rsa.crypt(e_key, rsa_pu)
-        print(key, ":", d_key.encode())
+        # print(key, ":", d_key.encode())
         
         buf3 = b''
         if key == d_key and len(key) == len(d_key):
@@ -119,8 +119,6 @@ def ntimes_md5(buf, ntimes):
 
     return md5hash
 
-
-
 # KMD 오류 정의
 class KMDFormatError(Exception):
     def __init__(self, value):
@@ -150,12 +148,14 @@ class KMDConstants:
 class KMD(KMDConstants):
     # 클래스 초기화
     def __init__(self, fname, pu):
-        self.__rsa_pu = pu
         self.filename = fname
         self.date = None
         self.time = None
         self.body = None
+
         self.__kmd_data = None
+        self.__rsa_pu = pu
+        self.__rc4_key = None
         if self.filename:
             self.__decrypt(self.filename)
 
@@ -167,6 +167,7 @@ class KMD(KMDConstants):
 
         try:
             with open(fname, 'rb') as fp:
+                print(fp.read(4), self.KMD_SIGNATURE)
                 if fp.read(4) == self.KMD_SIGNATURE:
                     self.__kmd_data = self.KMD_SIGNATURE + fp.read()
                 else:

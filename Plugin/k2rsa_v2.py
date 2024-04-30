@@ -100,11 +100,14 @@ def read_key(key_filename):
         return None
 
 def crypt(buf, key):
-    plaintext_ord = 0
+    plantext_ord = 0
     for i in range(len(buf)):
-        plaintext_ord |= ord(buf[i]) << (i * 8)
+        if isinstance(buf[i], int):
+            plantext_ord |= buf[i] << (i * 8)
+        else:
+            plantext_ord |= ord(buf[i]) << (i * 8)
 
-    val = pow(plaintext_ord, key[0], key[1])
+    val = pow(plantext_ord, key[0], key[1])
 
     ret = ''
     for _ in range(32):
