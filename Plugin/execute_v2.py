@@ -15,6 +15,6 @@ kmd.make('test.txt', True)
 
 # KMD 파일 복호화 및 출력
 pu_key = rsa.read_key('key.pkr')
-kmd = kmd.KMD('test.kmd', pu_key)
+kmd = k2kmdfile_v2.KMD('test.kmd', pu_key)
 print("Decrypted data:")
 print(kmd.body)

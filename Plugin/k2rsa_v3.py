@@ -131,21 +131,21 @@ class RSA:
         주어진 키 파일을 읽어 RSA 키로 변환합니다.
         """
         with open(key_filename, 'r') as f:
-            # key_data = f.read().strip().split('\n')
-            # print(key_data)
-            # if len(key_data) != 2:
-            #     raise ValueError("Key file should contain exactly 2 lines")
+            key_data = f.read().strip().split('\n')
+            print(key_data)
+            if len(key_data) != 2:
+                raise ValueError("Key file should contain exactly 2 lines")
 
-            # n_decoded = base64.b64decode(key_data[0].strip()).decode()
-            # d_decoded = base64.b64decode(key_data[1].strip()).decode()
+            n_decoded = base64.b64decode(key_data[0].strip()).decode()
+            d_decoded = base64.b64decode(key_data[1].strip()).decode()
 
-            # n = self.__string_to_value(n_decoded)
-            # d = self.__string_to_value(d_decoded)
-            # return n, d
-            b = f.read()
-            s = base64.b64decode(b)
-            # key = marshal.loads(s)
-        return s
+            n = self.__string_to_value(n_decoded)
+            d = self.__string_to_value(d_decoded)
+            return n, d
+        #     b = f.read()
+        #     s = base64.b64decode(b)
+        #     key = marshal.loads(s)
+        # return key
 
     def crypt(self, buf, key):
         """

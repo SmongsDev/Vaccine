@@ -2,6 +2,7 @@ import marshal
 import os
 import hashlib
 import base64
+import struct
 import k2rsa_v3
 import k2rc4_v2
 import zlib
@@ -149,7 +150,7 @@ class KMD(KMDConstants):
                     raise KMDFormatError('KMD Header magic not found.')
             
             tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
-            self.date = k2timelib.covert_date(struct.unpack('<H', tmp)[0])
+            self.date = k2timelib_v2.covert_date(struct.unpack('<H', tmp)[0])
 
             e_md5hash = self.__get_md5()
             md5hash = self.__kmd_data[self.KMD_MD5_OFFSET:]
