@@ -27,6 +27,7 @@ def get_now_date(self, now=None):
     year = now.year - 2000
     month = now.month
     day = now.day
+    print(year, month, day)
     return (year << 9) | (month << 5) | day
 
 def get_now_time(self, now=None):

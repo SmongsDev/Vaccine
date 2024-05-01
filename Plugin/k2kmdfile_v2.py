@@ -37,11 +37,10 @@ class KMDTool:
         pr_key = self.rsa.read_key('key.skr')
 
         # Header 생성
-        header = b'KAMV'
+        header = b'KAVM'
         
         now = datetime.datetime.now()
         reserved_area = k2timelib_v2.get_now_date(now) << 11 | k2timelib_v2.get_now_time(now)
-
         header += reserved_area.to_bytes(4, 'big')
         # RC4 키 생성
         rc4_key = os.urandom(16)  # 16바이트 랜덤 키 생성
@@ -102,7 +101,6 @@ class KMDFormatError(Exception):
     def __str__(self):
         return repr(self.value)
 
-
 class KMDConstants:
     """
     KMD 파일 관련 상수를 정의하는 클래스입니다.
@@ -121,7 +119,7 @@ class KMDConstants:
     KMD_RC4_KEY_LENGTH = 32
 
     KMD_MD5_OFFSET = -32
-
+import os.path
 class KMD(KMDConstants):
     def __init__(self, fname, pu):
         self.filename = fname
@@ -137,25 +135,28 @@ class KMD(KMDConstants):
             self.__decrypt(self.filename)
 
     def __decrypt(self, fname, debug=False):
-        print(fname)
-        current_directory = os.getcwd()
-        print("Current working directory:", current_directory)
-
+        if os.path.isfile(fname):
+            print("Yes. it is a file")
+        if os.path.isdir(fname):
+            print("Yes. it is a directory")
+        if os.path.exists(fname):
+            print("Something exist")
         try:
             with open(fname, 'rb') as fp:
-                print(fp.read(4), self.KMD_SIGNATURE)
                 if fp.read(4) == self.KMD_SIGNATURE:
                     self.__kmd_data = self.KMD_SIGNATURE + fp.read()
                 else:
                     raise KMDFormatError('KMD Header magic not found.')
+                
+            self.date = self.__get_date()
+            self.time = self.__get_time()
             
-            tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
-            self.date = k2timelib_v2.covert_date(struct.unpack('<H', tmp)[0])
-
             e_md5hash = self.__get_md5()
-            md5hash = self.__kmd_data[self.KMD_MD5_OFFSET:]
+            print(1)
+            md5hash = ntimes_md5(self.__kmd_data[:self.KMD_MD5_OFFSET], 3)
             if e_md5hash != md5hash:
                 raise KMDFormatError('Invalid KMD MD5 hash.')
+            print(2)
 
             self.__rc4_key = self.__get_rc4_key()
             e_kmd_data = self.__get_body()
@@ -168,7 +169,44 @@ class KMD(KMDConstants):
         except Exception:
             print('파일을 열 수 없습니다.')
             
+    def __get_date(self):
+        tmp = self.__kmd_data[self.KMD_DATE_OFFSET:self.KMD_DATE_OFFSET + self.KMD_DATE_LENGTH]
+        int_val = int.from_bytes(tmp, 'big')
+        # year, month, day = k2timelib_v2.convert_date(tmp)
+        day = int_val & 0b11111
+        month = (int_val >> 5) & 0b1111
+        year = ((int_val >> 9) & 0b1111111) + 2000
+        # print("날짜", year, month, day)
+        return year, month, day
+
+    def __get_time(self):
+        tmp = self.__kmd_data[self.KMD_TIME_OFFSET:self.KMD_TIME_OFFSET + self.KMD_TIME_LENGTH]
+        int_val = int.from_bytes(tmp, 'big')
+        # hour, minute, second = k2timelib_v2.convert_time(tmp)
+        second = (int_val & 0b11111) * 2
+        minute = (int_val >> 5) & 0b111111
+        hour = (int_val >> 11) & 0b11111
+        # print("시간", hour, minute, second)
+        return hour, minute, second
+
+    def __get_rc4_key(self):
+        e_key = self.__kmd_data[self.KMD_RC4_KEY_OFFSET:self.KMD_RC4_KEY_OFFSET + self.KMD_RC4_KEY_LENGTH]
+        return k2rsa_v3.crypt(e_key, self.__rsa_pu)
+
+    def __get_body(self):
+        e_kmd_data = self.__kmd_data[self.KMD_RC4_KEY_OFFSET + self.KMD_RC4_KEY_LENGTH:self.KMD_MD5_OFFSET]
+
+        r = k2rc4_v2.RC4()
+        r.set_key(self.__rc4_key)
+        return r.crypt(e_kmd_data)
+
+    def __get_md5(self):
+        print(self.__kmd_data)
+        e_md5 = self.__kmd_data[self.KMD_MD5_OFFSET:]
+        print(e_md5)
+        return k2rsa_v3.md_crypt(e_md5, self.__rsa_pu)
         
+
     # def __decrypt(self, fname, debuf=False):
     #     with open(fname, 'rb') as f:
     #         signature = f.read(len(self.KMD_SIGNATURE))
@@ -206,18 +244,3 @@ class KMD(KMDConstants):
     #     # 8. 입축 해제하기
     #     decrypted_body = zlib.decompress(rc4_key + compressed_body)
     #     return decrypted_body
-
-    def __get_rc4_key(self):
-        e_key = self.__kmd_data[self.KMD_RC4_KEY_OFFSET:self.KMD_RC4_KEY_OFFSET + self.KMD_RC4_KEY_LENGTH]
-        return k2rsa_v3.crypt(e_key, self.__rsa_pu)
-
-    def __get_body(self):
-        e_kmd_data = self.__kmd_data[self.KMD_RC4_KEY_OFFSET + self.KMD_RC4_KEY_LENGTH:self.KMD_MD5_OFFSET]
-
-        r = k2rc4_v2.RC4()
-        r.set_key(self.__rc4_key)
-        return r.crypt(e_kmd_data)
-
-    def __get_md5(self):
-        e_md5 = self.__kmd_data[self.KMD_MD5_OFFSET:]
-        return k2rsa_v3.crypt(e_md5, self.__rsa_pu)

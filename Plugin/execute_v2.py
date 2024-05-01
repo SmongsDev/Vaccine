@@ -9,9 +9,8 @@ rsa.create_key('key.pkr', 'key.skr')
 with open('test.txt', 'w') as f:
     f.write('This is a sample text for testing KMD file creation and decryption.')
 
-kmd = k2kmdfile_v2.KMDTool()
 # KMD 파일 생성
-kmd.make('test.txt', True)
+k2kmdfile_v2.KMDTool().make('test.txt', True)
 
 # KMD 파일 복호화 및 출력
 pu_key = rsa.read_key('key.pkr')

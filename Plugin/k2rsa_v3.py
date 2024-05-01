@@ -157,3 +157,13 @@ class RSA:
         print('okay')
         result = pow(buf, k, n)
         return self.__value_to_string(result)
+    
+    def md_crypt(self, buf, key):
+        print(buf)
+        print(key)
+        plantext_ord = self.__string_to_value(buf)
+        print(plantext_ord)
+
+        val = pow(plantext_ord, key[0], key[1])
+
+        return self.__value_to_string(val)
